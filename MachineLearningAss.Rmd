@@ -1,0 +1,124 @@
+---
+title: "MachineLeaning"
+author: "Tanika"
+date: "June 27, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Data Analysis:
+
+# 1. Load the dataset and try to understand the data.
+```{r}
+trainingDataset <- read.csv("pml-training.csv")
+testingDataset <- read.csv("pml-testing.csv")
+```
+
+#. Lets try to understand the data.
+```{r}
+summary(trainingDataset)
+head(trainingDataset)
+names(trainingDataset)
+colnames(trainingDataset)
+```
+
+#Install the packages for analyzing the data.
+```{r}
+install.packages("caret",repos = "http://cran.us.r-project.org")
+install.packages("lattice",repos = "http://cran.us.r-project.org")
+install.packages("magic",repos = "http://cran.us.r-project.org")
+library(caret)
+library(lattice)
+library(magic)
+```
+
+
+# Setting the seed for reproducibility
+```{r}
+
+set.seed(1234)
+```
+
+
+# plotting the graph
+```{r}
+
+plot(trainingDataset$classe, col="yellow", main="Plot of levels of variable classe", xlab="classe", ylab="Frequency")
+```
+
+
+# 2. As the number of variables in the training data is too large, clean the data by excluding the variables that are not explanatory and variables with very little information (use PCA).
+```{r}
+removeData <- grep("name|timestamp|window|X", colnames(trainingDataset), value=F) 
+trainCleanData <- trainingDataset[,-removeData]
+head(trainCleanData)
+```
+
+# We will also exclude the variables with large number of NA's.
+```{r}
+trainCleanData[trainCleanData==""] <- NA
+NA_data <- apply(trainCleanData, 2, function(x) sum(is.na(x)))/nrow(trainCleanData)
+trainCleanData <- trainCleanData[!(NA_data>0.90)]
+summary(trainCleanData)
+```
+
+
+# Clean the testing data.
+```{r}
+removeData1 <- grep("name|timestamp|window|X", colnames(testingDataset), value=F) 
+testCleanData <- testingDataset[,-removeData]
+head(testCleanData)
+```
+
+# We will also exclude the variables with large number of NA's.
+```{r}
+testCleanData[testCleanData==""] <- NA
+NA_data1 <- apply(testCleanData, 2, function(x) sum(is.na(x)))/nrow(testCleanData)
+testCleanData <- testCleanData[!(NA_data>0.90)]
+summary(testCleanData)
+```
+
+
+
+# 3. Random Forest to build the model.
+In Random Forest Method there is no need for cross validation or seperate test to get an unbiased estimate of the test set error, as it inherently takes care of that.
+
+```{r}
+install.packages("randomForest",repos = "http://cran.us.r-project.org")
+library(randomForest)
+model <- randomForest(classe ~. , data=trainCleanData, method="class")
+model
+```
+
+# Prediction
+```{r}
+prediction <- predict(model, trainCleanData, type = "class")
+confusionMatrix(prediction, trainCleanData$classe)
+```
+
+
+# 4. Test the model with the testing data set.
+```{r}
+predictResult <- predict(model, testingDataset, type="class")
+predictResult
+```
+
+
+# 5. Write files for the submission.
+```{r}
+
+writeFile <- function(x){
+  n = length(x)
+  for(i in 1:n){
+    filename = paste0("problem_id_",i,".txt")
+    write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+    
+  }
+}
+
+writeFile(predictResult)
+```
